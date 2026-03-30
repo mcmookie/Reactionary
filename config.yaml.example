@@ -1,10 +1,8 @@
 # Reactionary Discord Bot Configuration
 # Copy this file to config.yaml and edit to your needs.
 # See README.md for full documentation of all trigger types.
-
-# Discord bot token (can also be set via DISCORD_TOKEN environment variable).
-# The environment variable takes precedence over this value.
-discord_token: "your_bot_token_here"
+#
+# Your bot token belongs in .env (DISCORD_TOKEN), not here.
 
 rules:
   # React to every message in a channel

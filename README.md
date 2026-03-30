@@ -20,7 +20,7 @@ cp .env.example .env          # add your bot token here
 cp config.yaml.example config.yaml  # define your reaction rules here
 ```
 
-The bot token can be set in **either** `.env` (as `DISCORD_TOKEN`) or in `config.yaml` (as `discord_token`). The environment variable takes precedence.
+The bot token is a secret and must be set in `.env` (as `DISCORD_TOKEN`). Never put secrets in `config.yaml`.
 
 To get a channel, user, or role ID, enable **Developer Mode** in Discord settings, then right-click the item and select **Copy ID**.
 
@@ -43,8 +43,6 @@ By default the bot looks for `config.yaml` in the current directory. Set the `CO
 All reaction behaviour is defined in `config.yaml` as a list of **rules**. Each rule specifies which channels to watch, what triggers to match, and which emojis to add.
 
 ```yaml
-discord_token: "your_bot_token_here"   # optional if set in .env
-
 rules:
   - channels:          # list of channel IDs (omit to match all channels)
       - 111111111111
@@ -93,8 +91,6 @@ If `channels` is omitted the rule applies to **all** channels.
 ### Full Example
 
 ```yaml
-discord_token: "your_bot_token_here"
-
 rules:
   # React to embeds and attachments
   - channels:

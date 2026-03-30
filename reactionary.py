@@ -92,13 +92,9 @@ def load_config():
 
 config = load_config()
 
-TOKEN = os.getenv("DISCORD_TOKEN") or config.get("discord_token")
+TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
-    sys.exit(
-        "Error: DISCORD_TOKEN is not set. "
-        "Provide it via the DISCORD_TOKEN environment variable or "
-        "the 'discord_token' field in config.yaml."
-    )
+    sys.exit("Error: DISCORD_TOKEN environment variable is not set.")
 
 rules = config["rules"]
 

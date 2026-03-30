@@ -312,7 +312,6 @@ class TestConfigValidation:
 
     def test_valid_config(self, tmp_path):
         config = {
-            "discord_token": "tok",
             "rules": [
                 {
                     "channels": [111],
