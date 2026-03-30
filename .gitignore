@@ -1,0 +1,12 @@
+# Environment and config (may contain secrets)
+.env
+config.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
