@@ -1,0 +1,117 @@
+# Reactionary Discord Bot Configuration
+# Copy this file to config.yaml and edit to your needs.
+# See README.md for full documentation of all trigger types.
+#
+# Your bot token belongs in .env (DISCORD_TOKEN), not here.
+
+rules:
+  # React to every message in a channel
+  - channels:
+      - 111111111111
+    triggers:
+      - type: all
+    emojis:
+      - "👍"
+
+  # React to messages that contain embeds or attachments
+  - channels:
+      - 222222222222
+    triggers:
+      - type: embed
+      - type: attachment
+    emojis:
+      - "👍"
+      - "🎉"
+
+  # React to messages containing specific text (case-insensitive)
+  - channels:
+      - 333333333333
+    triggers:
+      - type: contains
+        value: "hello"
+    emojis:
+      - "👋"
+
+  # React to messages matching an exact string
+  # - channels:
+  #     - 444444444444
+  #   triggers:
+  #     - type: exact
+  #       value: "ping"
+  #   emojis:
+  #     - "🏓"
+
+  # React to messages matching a regex pattern
+  # - channels:
+  #     - 555555555555
+  #   triggers:
+  #     - type: regex
+  #       value: "\\bhello\\b"
+  #   emojis:
+  #     - "👋"
+
+  # React to messages that contain a link
+  # - channels:
+  #     - 666666666666
+  #   triggers:
+  #     - type: has_link
+  #   emojis:
+  #     - "🔗"
+
+  # React to messages that contain a sticker
+  # - channels:
+  #     - 777777777777
+  #   triggers:
+  #     - type: has_sticker
+  #   emojis:
+  #     - "⭐"
+
+  # React to replies
+  # - channels:
+  #     - 888888888888
+  #   triggers:
+  #     - type: reply
+  #   emojis:
+  #     - "💬"
+
+  # React when the bot is mentioned
+  # - channels:
+  #     - 999999999999
+  #   triggers:
+  #     - type: mention_bot
+  #   emojis:
+  #     - "👀"
+
+  # React when any user is mentioned
+  # - channels:
+  #     - 101010101010
+  #   triggers:
+  #     - type: mention_any
+  #   emojis:
+  #     - "📢"
+
+  # React to messages from a specific user (by user ID)
+  # - channels:
+  #     - 111111111111
+  #   triggers:
+  #     - type: user
+  #       value: "123456789012345678"
+  #   emojis:
+  #     - "🌟"
+
+  # React to messages from users with a specific role (by role ID or name)
+  # - channels:
+  #     - 222222222222
+  #   triggers:
+  #     - type: role
+  #       value: "Moderator"
+  #   emojis:
+  #     - "🛡️"
+
+  # React to the starter message when a thread is created
+  # - channels:
+  #     - 333333333333
+  #   triggers:
+  #     - type: thread_created
+  #   emojis:
+  #     - "🧵"

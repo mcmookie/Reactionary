@@ -1,6 +1,6 @@
 # Reactionary
 
-A single-purpose Discord bot that automatically reacts to messages containing embeds in a specified channel.
+A flexible Discord bot that automatically reacts to messages based on configurable rules and triggers.
 
 ## Setup
 
@@ -8,31 +8,21 @@ A single-purpose Discord bot that automatically reacts to messages containing em
 
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and create a new application.
 2. Under **Bot**, create a bot user and copy the token.
-3. Enable the **Message Content Intent** under **Privileged Gateway Intents**.
+3. Enable the **Message Content Intent** and **Server Members Intent** under **Privileged Gateway Intents**.
 4. Invite the bot to your server with the `bot` scope and the `Add Reactions` + `Read Messages` permissions.
 
-### 2. Configure Environment Variables
+### 2. Configure the Bot
 
-Copy `.env.example` to `.env` and fill in your values:
+Copy the example files and fill in your values:
 
 ```bash
-cp .env.example .env
+cp .env.example .env          # add your bot token here
+cp config.yaml.example config.yaml  # define your reaction rules here
 ```
 
-| Variable         | Description                                                                                     |
-|------------------|-------------------------------------------------------------------------------------------------|
-| `DISCORD_TOKEN`  | Your bot token from the Developer Portal                                                        |
-| `CHANNELS`       | Channel-to-emoji mapping: `<channel_id>:<emoji1>,<emoji2> \| <channel_id>:<emoji1>` (see below) |
+The bot token is a secret and must be set in `.env` (as `DISCORD_TOKEN`). Never put secrets in `config.yaml`.
 
-**`CHANNELS` format:** each entry is `<channel_id>:<emoji1>,<emoji2>,...`, with entries separated by ` | `. For example:
-
-```
-CHANNELS=111111111111:👍,🎉 | 222222222222:👎,🔥
-```
-
-If no emojis are specified for a channel, the bot defaults to `👍`. At least one channel must be configured.
-
-To get a channel ID, enable **Developer Mode** in Discord settings, then right-click the channel and select **Copy ID**.
+To get a channel, user, or role ID, enable **Developer Mode** in Discord settings, then right-click the item and select **Copy ID**.
 
 ### 3. Install Dependencies
 
@@ -44,6 +34,98 @@ pip install -r requirements.txt
 
 ```bash
 python reactionary.py
+```
+
+By default the bot looks for `config.yaml` in the current directory. Set the `CONFIG_PATH` environment variable to use a different path.
+
+## Configuration
+
+All reaction behaviour is defined in `config.yaml` as a list of **rules**. Each rule specifies which channels to watch, what triggers to match, and which emojis to add.
+
+```yaml
+rules:
+  - channels:          # list of channel IDs (omit to match all channels)
+      - 111111111111
+    triggers:          # at least one trigger must match
+      - type: embed
+    emojis:            # reactions to add when a trigger matches
+      - "👍"
+      - "🎉"
+```
+
+### Trigger Types
+
+| Trigger | Description | `value` field |
+|---------|-------------|---------------|
+| `all` | Matches every message | — |
+| `embed` | Message contains an embed | — |
+| `attachment` | Message has a file attachment | — |
+| `contains` | Message text contains the value (case-insensitive) | required |
+| `exact` | Message text matches the value exactly | required |
+| `regex` | Message text matches a regular expression | required |
+| `has_link` | Message contains an `http://` or `https://` URL | — |
+| `has_sticker` | Message includes a sticker | — |
+| `reply` | Message is a reply to another message | — |
+| `mention_bot` | Message mentions the bot | — |
+| `mention_any` | Message mentions any user | — |
+| `user` | Message is from a specific user (by user ID) | required |
+| `role` | Message is from a user with a specific role (by role ID or name) | required |
+| `thread_created` | A new thread is created (reacts to the starter message) | — |
+
+A rule fires when **any** of its triggers match (logical OR). You can combine multiple triggers in a single rule:
+
+```yaml
+rules:
+  - channels:
+      - 111111111111
+    triggers:
+      - type: embed
+      - type: attachment
+      - type: has_link
+    emojis:
+      - "🔗"
+```
+
+If `channels` is omitted the rule applies to **all** channels.
+
+### Full Example
+
+```yaml
+rules:
+  # React to embeds and attachments
+  - channels:
+      - 111111111111
+    triggers:
+      - type: embed
+      - type: attachment
+    emojis:
+      - "👍"
+      - "🎉"
+
+  # Greet messages that say hello
+  - channels:
+      - 222222222222
+    triggers:
+      - type: contains
+        value: "hello"
+    emojis:
+      - "👋"
+
+  # React to all messages in a showcase channel
+  - channels:
+      - 333333333333
+    triggers:
+      - type: all
+    emojis:
+      - "❤️"
+
+  # React when a thread is created
+  - channels:
+      - 444444444444
+    triggers:
+      - type: thread_created
+    emojis:
+      - "🧵"
 ```
 
 ## Running as a systemd Service (Linux VPS)
@@ -82,6 +164,9 @@ journalctl -u reactionary -n 50      # Last 50 log lines
 
 ## How It Works
 
-- The bot listens for new messages in the channels specified by `CHANNELS`.
-- When a message contains one or more embeds, the bot adds the configured emojis for that channel as reactions in the order they are defined.
-- Messages without embeds, messages in unconfigured channels, and messages from the bot itself are ignored.
+- The bot loads reaction rules from `config.yaml` at startup.
+- Each rule defines channels to watch, triggers to match, and emojis to react with.
+- When a message arrives the bot evaluates every rule whose channel list includes the message's channel (or all rules if `channels` is omitted).
+- If **any** trigger in a rule matches, the bot adds all of that rule's emojis as reactions.
+- The `thread_created` trigger listens for new threads and reacts to the starter message.
+- Messages from the bot itself are always ignored.
