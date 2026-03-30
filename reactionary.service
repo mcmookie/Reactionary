@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=YOUR_USERNAME
 WorkingDirectory=/path/to/Reactionary
-ExecStart=/usr/bin/python3 /path/to/Reactionary/bot.py
+ExecStart=/usr/bin/python3 /path/to/Reactionary/reactionary.py
 Restart=always
 RestartSec=5
 
