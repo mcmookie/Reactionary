@@ -19,11 +19,11 @@ Copy `.env.example` to `.env` and fill in your values:
 cp .env.example .env
 ```
 
-| Variable        | Description                                      |
-|-----------------|--------------------------------------------------|
-| `DISCORD_TOKEN` | Your bot token from the Developer Portal         |
-| `CHANNEL_ID`    | The ID of the channel to monitor                 |
-| `REACTION_EMOJI`| The emoji to react with (default: `👍`)          |
+| Variable          | Description                                                                 |
+|-------------------|-----------------------------------------------------------------------------|
+| `DISCORD_TOKEN`   | Your bot token from the Developer Portal                                    |
+| `CHANNEL_ID`      | The ID of the channel to monitor                                            |
+| `REACTION_EMOJIS` | Comma-separated ordered list of emojis to react with (default: `👍`)       |
 
 To get a channel ID, enable **Developer Mode** in Discord settings, then right-click the channel and select **Copy ID**.
 
@@ -42,5 +42,5 @@ python bot.py
 ## How It Works
 
 - The bot listens for new messages in the channel specified by `CHANNEL_ID`.
-- When a message contains one or more embeds, the bot adds the configured emoji reaction to it.
+- When a message contains one or more embeds, the bot adds all configured emojis as reactions in the order they are defined in `REACTION_EMOJIS`.
 - Messages without embeds and messages from the bot itself are ignored.

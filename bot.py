@@ -7,7 +7,8 @@ load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 _channel_id_raw = os.getenv("CHANNEL_ID")
-REACTION_EMOJI = os.getenv("REACTION_EMOJI", "👍")
+_reaction_emojis_raw = os.getenv("REACTION_EMOJIS", "")
+REACTION_EMOJIS = [e.strip() for e in _reaction_emojis_raw.split(",") if e.strip()] or ["👍"]
 
 if not TOKEN:
     sys.exit("Error: DISCORD_TOKEN environment variable is not set.")
@@ -37,10 +38,11 @@ async def on_message(message):
     if message.author == client.user:
         return
     if message.embeds:
-        try:
-            await message.add_reaction(REACTION_EMOJI)
-        except discord.errors.DiscordException as e:
-            print(f"Failed to add reaction to message {message.id}: {e}")
+        for emoji in REACTION_EMOJIS:
+            try:
+                await message.add_reaction(emoji)
+            except discord.errors.DiscordException as e:
+                print(f"Failed to add reaction {emoji!r} to message {message.id}: {e}")
 
 
 client.run(TOKEN)
