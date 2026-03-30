@@ -4,24 +4,44 @@
 #
 # Your bot token belongs in .env (DISCORD_TOKEN), not here.
 
+# Optional global settings
+# global:
+#   ignore_bots: true   # ignore messages from other bots (default: false)
+
 rules:
   # React to every message in a channel
-  - channels:
+  - name: "thumbs-up-all"
+    channels:
       - 111111111111
     triggers:
       - type: all
     emojis:
       - "👍"
 
-  # React to messages that contain embeds or attachments
-  - channels:
+  # React to messages that contain embeds or attachments (any trigger matches)
+  - name: "media-reactions"
+    channels:
       - 222222222222
+    trigger_mode: "any"   # default; fire when ANY trigger matches (logical OR)
     triggers:
       - type: embed
       - type: attachment
     emojis:
       - "👍"
       - "🎉"
+
+  # React only when a message BOTH contains a link AND is from a specific role
+  # (all triggers must match – logical AND)
+  # - name: "mod-links"
+  #   channels:
+  #     - 333333333333
+  #   trigger_mode: "all"
+  #   triggers:
+  #     - type: has_link
+  #     - type: role
+  #       value: "Moderator"
+  #   emojis:
+  #     - "🔗"
 
   # React to messages containing specific text (case-insensitive)
   - channels:
@@ -31,6 +51,15 @@ rules:
         value: "hello"
     emojis:
       - "👋"
+
+  # React to all messages except those in excluded channels
+  # - triggers:
+  #     - type: all
+  #   excluded_channels:
+  #     - 444444444444
+  #     - 555555555555
+  #   emojis:
+  #     - "👀"
 
   # React to messages matching an exact string
   # - channels:

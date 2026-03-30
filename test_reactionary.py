@@ -400,6 +400,20 @@ class TestConfigValidation:
         assert code != 0
         assert "integer" in output.lower()
 
+    def test_empty_channels_is_invalid(self, tmp_path):
+        config = {
+            "rules": [
+                {
+                    "channels": [],
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code != 0
+        assert "empty" in output.lower()
+
     def test_multiple_triggers_in_rule(self, tmp_path):
         config = {
             "rules": [
@@ -424,6 +438,153 @@ class TestConfigValidation:
                     "triggers": [{"type": "all"}],
                     "emojis": ["👍"],
                 }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code == 0, output
+
+    def test_trigger_mode_all_is_valid(self, tmp_path):
+        config = {
+            "rules": [
+                {
+                    "channels": [111],
+                    "trigger_mode": "all",
+                    "triggers": [
+                        {"type": "contains", "value": "hello"},
+                        {"type": "has_link"},
+                    ],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code == 0, output
+
+    def test_trigger_mode_any_is_valid(self, tmp_path):
+        config = {
+            "rules": [
+                {
+                    "channels": [111],
+                    "trigger_mode": "any",
+                    "triggers": [{"type": "embed"}, {"type": "attachment"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code == 0, output
+
+    def test_invalid_trigger_mode(self, tmp_path):
+        config = {
+            "rules": [
+                {
+                    "channels": [111],
+                    "trigger_mode": "none",
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code != 0
+        assert "trigger_mode" in output.lower()
+
+    def test_excluded_channels_is_valid(self, tmp_path):
+        config = {
+            "rules": [
+                {
+                    "excluded_channels": [999],
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code == 0, output
+
+    def test_excluded_channels_must_be_ints(self, tmp_path):
+        config = {
+            "rules": [
+                {
+                    "excluded_channels": ["not-an-int"],
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code != 0
+        assert "integer" in output.lower()
+
+    def test_rule_name_is_valid(self, tmp_path):
+        config = {
+            "rules": [
+                {
+                    "name": "my-rule",
+                    "channels": [111],
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code == 0, output
+
+    def test_rule_name_must_be_string(self, tmp_path):
+        config = {
+            "rules": [
+                {
+                    "name": 42,
+                    "channels": [111],
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code != 0
+        assert "name" in output.lower()
+
+    def test_ignore_bots_global_valid(self, tmp_path):
+        config = {
+            "global": {"ignore_bots": True},
+            "rules": [
+                {
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code == 0, output
+
+    def test_ignore_bots_must_be_bool(self, tmp_path):
+        config = {
+            "global": {"ignore_bots": "yes"},
+            "rules": [
+                {
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code != 0
+        assert "ignore_bots" in output.lower()
+
+    def test_multiple_rules_multiple_channels(self, tmp_path):
+        config = {
+            "rules": [
+                {
+                    "channels": [111, 222, 333],
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                },
+                {
+                    "channels": [444, 555],
+                    "triggers": [{"type": "embed"}, {"type": "attachment"}],
+                    "emojis": ["🎉"],
+                },
             ],
         }
         code, output = self._run_load(tmp_path, config)
