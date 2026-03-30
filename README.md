@@ -53,6 +53,17 @@ rules:
       - "🎉"
 ```
 
+### Rule Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `triggers` | ✅ | List of trigger conditions (see below) |
+| `emojis` | ✅ | List of emoji reactions to add |
+| `channels` | — | Channel IDs to watch; omit to apply to all channels |
+| `excluded_channels` | — | Channel IDs to skip; useful with global rules |
+| `trigger_mode` | — | `"any"` (default) or `"all"` — see below |
+| `name` | — | Optional label shown in startup logs for easier debugging |
+
 ### Trigger Types
 
 | Trigger | Description | `value` field |
@@ -72,21 +83,66 @@ rules:
 | `role` | Message is from a user with a specific role (by role ID or name) | required |
 | `thread_created` | A new thread is created (reacts to the starter message) | — |
 
-A rule fires when **any** of its triggers match (logical OR). You can combine multiple triggers in a single rule:
+### `trigger_mode`
+
+Controls how multiple triggers within a rule are combined:
+
+- **`"any"`** (default) — fires when **any** trigger matches (logical OR)
+- **`"all"`** — fires only when **every** trigger matches (logical AND)
 
 ```yaml
 rules:
+  # OR: react to embeds OR attachments
   - channels:
       - 111111111111
+    trigger_mode: "any"
     triggers:
       - type: embed
       - type: attachment
+    emojis:
+      - "📎"
+
+  # AND: react only when a link is posted by a Moderator
+  - channels:
+      - 222222222222
+    trigger_mode: "all"
+    triggers:
       - type: has_link
+      - type: role
+        value: "Moderator"
     emojis:
       - "🔗"
 ```
 
-If `channels` is omitted the rule applies to **all** channels.
+When `trigger_mode: "all"` is used with a `thread_created` trigger alongside other triggers, all the non-`thread_created` triggers are evaluated against the thread's starter message. The rule fires only if every trigger matches.
+
+### `excluded_channels`
+
+Excludes specific channels from an otherwise global rule (one with no `channels` list):
+
+```yaml
+rules:
+  # React to all messages server-wide, except in the spam channel
+  - excluded_channels:
+      - 999999999999
+    triggers:
+      - type: all
+    emojis:
+      - "👍"
+```
+
+### Global Settings
+
+An optional `global` section at the top of `config.yaml` sets server-wide defaults:
+
+```yaml
+global:
+  ignore_bots: true   # ignore messages from other bots (default: false)
+```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `ignore_bots` | `false` | When `true`, messages from any bot (other than the bot itself) are ignored |
 
 ### Full Example
 
@@ -164,9 +220,9 @@ journalctl -u reactionary -n 50      # Last 50 log lines
 
 ## How It Works
 
-- The bot loads reaction rules from `config.yaml` at startup.
+- The bot loads reaction rules from `config.yaml` at startup and prints a summary of loaded rules.
 - Each rule defines channels to watch, triggers to match, and emojis to react with.
-- When a message arrives the bot evaluates every rule whose channel list includes the message's channel (or all rules if `channels` is omitted).
-- If **any** trigger in a rule matches, the bot adds all of that rule's emojis as reactions.
-- The `thread_created` trigger listens for new threads and reacts to the starter message.
-- Messages from the bot itself are always ignored.
+- When a message arrives the bot evaluates every rule whose channel list includes the message's channel (or all rules if `channels` is omitted), skipping any channels listed in `excluded_channels`.
+- If `trigger_mode` is `"any"` (the default), the rule fires when **any** trigger matches. If `trigger_mode` is `"all"`, the rule fires only when **every** trigger matches.
+- The `thread_created` trigger listens for new threads and reacts to the starter message. When paired with other triggers and `trigger_mode: "all"`, all non-`thread_created` triggers are also evaluated against the starter message.
+- Messages from the bot itself are always ignored. Set `global.ignore_bots: true` to also ignore messages from other bots.
