@@ -39,6 +39,40 @@ pip install -r requirements.txt
 python bot.py
 ```
 
+## Running as a systemd Service (Linux VPS)
+
+To run the bot as a managed service that auto-starts on reboot and restarts on crash:
+
+### 1. Edit the unit file
+
+Open `reactionary.service` and replace the placeholder values:
+
+- `YOUR_USERNAME` → your Linux username on the VPS (e.g. `ubuntu`)
+- `/path/to/Reactionary` → the full path where you cloned the repo (e.g. `/home/ubuntu/Reactionary`)
+- Verify the Python path with `which python3` and update `ExecStart` if it differs from `/usr/bin/python3`. If you use a virtual environment, use the full path to that environment's Python binary instead (e.g. `/home/ubuntu/Reactionary/venv/bin/python`).
+
+### 2. Install and enable the service
+
+```bash
+sudo cp reactionary.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable reactionary
+sudo systemctl start reactionary
+sudo systemctl status reactionary
+```
+
+`systemctl enable` registers the service to start automatically on every reboot.  
+`Restart=always` ensures the bot is restarted automatically if it ever crashes.
+
+### 3. Useful management commands
+
+```bash
+sudo systemctl stop reactionary      # Stop the bot
+sudo systemctl restart reactionary   # Restart the bot
+journalctl -u reactionary -f         # Tail live logs
+journalctl -u reactionary -n 50      # Last 50 log lines
+```
+
 ## How It Works
 
 - The bot listens for new messages in the channel specified by `CHANNEL_ID`.
