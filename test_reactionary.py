@@ -53,8 +53,10 @@ def _load_module():
 
     exec(
         compile(
-            "import re\n"
+            "import os\n"
+            + "import re\n"
             + "import discord\n"
+            + "import yaml\n"
             + "LINK_PATTERN = re.compile(r'https?://\\S+')\n"
             + "VALID_TRIGGER_TYPES = "
             + repr({
@@ -72,11 +74,11 @@ def _load_module():
         mod.__dict__,
     )
 
-    # Pull check_trigger source out of the file
-    # We compile the function in the module namespace so it has access to
-    # LINK_PATTERN, re, etc.
-    func_source = _extract_function(source, "check_trigger")
-    exec(compile(func_source, spec.origin, "exec"), mod.__dict__)
+    # Pull functions out of the file and compile them in the module namespace
+    # so they have access to LINK_PATTERN, re, etc.
+    for fname in ("check_trigger", "save_config", "_find_rule", "is_admin"):
+        func_source = _extract_function(source, fname)
+        exec(compile(func_source, spec.origin, "exec"), mod.__dict__)
 
     return mod
 
@@ -97,6 +99,9 @@ def _extract_function(source, name):
 
 _mod = _load_module()
 check_trigger = _mod.check_trigger
+save_config = _mod.save_config
+_find_rule = _mod._find_rule
+is_admin = _mod.is_admin
 
 
 # ---------------------------------------------------------------------------
@@ -589,3 +594,329 @@ class TestConfigValidation:
         }
         code, output = self._run_load(tmp_path, config)
         assert code == 0, output
+
+    def test_admin_users_valid(self, tmp_path):
+        config = {
+            "global": {"admin_users": [123456789]},
+            "rules": [
+                {
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code == 0, output
+
+    def test_admin_users_must_be_list(self, tmp_path):
+        config = {
+            "global": {"admin_users": "not-a-list"},
+            "rules": [
+                {
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code != 0
+        assert "admin_users" in output.lower()
+
+    def test_admin_users_must_be_ints(self, tmp_path):
+        config = {
+            "global": {"admin_users": ["not-an-int"]},
+            "rules": [
+                {
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code != 0
+        assert "admin_users" in output.lower()
+
+    def test_admin_role_valid_string(self, tmp_path):
+        config = {
+            "global": {"admin_role": "BotAdmin"},
+            "rules": [
+                {
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code == 0, output
+
+    def test_admin_role_valid_int(self, tmp_path):
+        config = {
+            "global": {"admin_role": 999888777},
+            "rules": [
+                {
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code == 0, output
+
+    def test_admin_role_invalid_type(self, tmp_path):
+        config = {
+            "global": {"admin_role": [1, 2]},
+            "rules": [
+                {
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        code, output = self._run_load(tmp_path, config)
+        assert code != 0
+        assert "admin_role" in output.lower()
+
+
+# ---------------------------------------------------------------------------
+# save_config tests
+# ---------------------------------------------------------------------------
+
+class TestSaveConfig:
+    """Test that save_config writes valid YAML that round-trips correctly."""
+
+    def test_save_and_reload(self, tmp_path, monkeypatch):
+        cfg_path = str(tmp_path / "config.yaml")
+        monkeypatch.setenv("CONFIG_PATH", cfg_path)
+        config_dict = {
+            "global": {"ignore_bots": True},
+            "rules": [
+                {
+                    "name": "test-rule",
+                    "channels": [111, 222],
+                    "triggers": [
+                        {"type": "contains", "value": "hello"},
+                        {"type": "regex", "value": r"\bworld\b", "_compiled": re.compile(r"\bworld\b")},
+                    ],
+                    "emojis": ["👍", "🎉"],
+                }
+            ],
+        }
+        save_config(config_dict)
+
+        with open(cfg_path, "r", encoding="utf-8") as fh:
+            loaded = yaml.safe_load(fh)
+
+        assert loaded["global"]["ignore_bots"] is True
+        assert len(loaded["rules"]) == 1
+        rule = loaded["rules"][0]
+        assert rule["name"] == "test-rule"
+        assert rule["channels"] == [111, 222]
+        assert len(rule["triggers"]) == 2
+        assert rule["triggers"][0] == {"type": "contains", "value": "hello"}
+        # _compiled should be stripped
+        assert "_compiled" not in rule["triggers"][1]
+        assert rule["triggers"][1] == {"type": "regex", "value": r"\bworld\b"}
+        assert rule["emojis"] == ["👍", "🎉"]
+
+    def test_save_strips_internal_keys(self, tmp_path, monkeypatch):
+        cfg_path = str(tmp_path / "config.yaml")
+        monkeypatch.setenv("CONFIG_PATH", cfg_path)
+        config_dict = {
+            "rules": [
+                {
+                    "triggers": [{"type": "all", "_internal": "junk"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        save_config(config_dict)
+
+        with open(cfg_path, "r", encoding="utf-8") as fh:
+            loaded = yaml.safe_load(fh)
+
+        assert "_internal" not in loaded["rules"][0]["triggers"][0]
+
+    def test_save_preserves_excluded_channels(self, tmp_path, monkeypatch):
+        cfg_path = str(tmp_path / "config.yaml")
+        monkeypatch.setenv("CONFIG_PATH", cfg_path)
+        config_dict = {
+            "rules": [
+                {
+                    "excluded_channels": [999],
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        save_config(config_dict)
+
+        with open(cfg_path, "r", encoding="utf-8") as fh:
+            loaded = yaml.safe_load(fh)
+
+        assert loaded["rules"][0]["excluded_channels"] == [999]
+
+    def test_save_preserves_trigger_mode(self, tmp_path, monkeypatch):
+        cfg_path = str(tmp_path / "config.yaml")
+        monkeypatch.setenv("CONFIG_PATH", cfg_path)
+        config_dict = {
+            "rules": [
+                {
+                    "trigger_mode": "all",
+                    "triggers": [{"type": "has_link"}, {"type": "embed"}],
+                    "emojis": ["🔗"],
+                }
+            ],
+        }
+        save_config(config_dict)
+
+        with open(cfg_path, "r", encoding="utf-8") as fh:
+            loaded = yaml.safe_load(fh)
+
+        assert loaded["rules"][0]["trigger_mode"] == "all"
+
+    def test_save_admin_config(self, tmp_path, monkeypatch):
+        cfg_path = str(tmp_path / "config.yaml")
+        monkeypatch.setenv("CONFIG_PATH", cfg_path)
+        config_dict = {
+            "global": {
+                "ignore_bots": False,
+                "admin_users": [111, 222],
+                "admin_role": "BotAdmin",
+            },
+            "rules": [
+                {
+                    "triggers": [{"type": "all"}],
+                    "emojis": ["👍"],
+                }
+            ],
+        }
+        save_config(config_dict)
+
+        with open(cfg_path, "r", encoding="utf-8") as fh:
+            loaded = yaml.safe_load(fh)
+
+        assert loaded["global"]["admin_users"] == [111, 222]
+        assert loaded["global"]["admin_role"] == "BotAdmin"
+
+
+# ---------------------------------------------------------------------------
+# _find_rule tests
+# ---------------------------------------------------------------------------
+
+class TestFindRule:
+    def test_find_by_name(self):
+        rules_list = [
+            {"name": "first", "emojis": ["👍"]},
+            {"name": "second", "emojis": ["🎉"]},
+        ]
+        idx, rule = _find_rule(rules_list, "second")
+        assert idx == 1
+        assert rule["name"] == "second"
+
+    def test_find_by_index(self):
+        rules_list = [
+            {"name": "first", "emojis": ["👍"]},
+            {"name": "second", "emojis": ["🎉"]},
+        ]
+        idx, rule = _find_rule(rules_list, "2")
+        assert idx == 1
+        assert rule["name"] == "second"
+
+    def test_find_by_index_one_based(self):
+        rules_list = [
+            {"name": "only", "emojis": ["👍"]},
+        ]
+        idx, rule = _find_rule(rules_list, "1")
+        assert idx == 0
+        assert rule["name"] == "only"
+
+    def test_not_found(self):
+        rules_list = [{"name": "first", "emojis": ["👍"]}]
+        idx, rule = _find_rule(rules_list, "nonexistent")
+        assert idx is None
+        assert rule is None
+
+    def test_index_out_of_range(self):
+        rules_list = [{"name": "first", "emojis": ["👍"]}]
+        idx, rule = _find_rule(rules_list, "5")
+        assert idx is None
+        assert rule is None
+
+    def test_zero_index_invalid(self):
+        rules_list = [{"name": "first", "emojis": ["👍"]}]
+        idx, rule = _find_rule(rules_list, "0")
+        assert idx is None
+        assert rule is None
+
+    def test_name_takes_precedence(self):
+        # A rule named "2" should be found by name, not by index
+        rules_list = [
+            {"name": "1", "emojis": ["👍"]},
+            {"name": "2", "emojis": ["🎉"]},
+        ]
+        idx, rule = _find_rule(rules_list, "2")
+        assert idx == 1
+        assert rule["name"] == "2"
+
+
+# ---------------------------------------------------------------------------
+# is_admin tests
+# ---------------------------------------------------------------------------
+
+class TestIsAdmin:
+    def _make_interaction(self, user_id=1000, roles=None, manage_guild=False):
+        interaction = MagicMock()
+        interaction.user.id = user_id
+        if roles is not None:
+            interaction.user.roles = roles
+        else:
+            interaction.user.roles = []
+        interaction.user.guild_permissions.manage_guild = manage_guild
+        return interaction
+
+    def test_admin_by_user_id(self):
+        interaction = self._make_interaction(user_id=12345)
+        assert is_admin(interaction, {"admin_users": [12345]}) is True
+
+    def test_not_admin_by_user_id(self):
+        interaction = self._make_interaction(user_id=99999)
+        assert is_admin(interaction, {"admin_users": [12345]}) is False
+
+    def test_admin_by_role_name(self):
+        role = MagicMock()
+        role.id = 5555
+        role.name = "BotAdmin"
+        interaction = self._make_interaction(roles=[role])
+        assert is_admin(interaction, {"admin_role": "BotAdmin"}) is True
+
+    def test_admin_by_role_id(self):
+        role = MagicMock()
+        role.id = 5555
+        role.name = "SomeRole"
+        interaction = self._make_interaction(roles=[role])
+        assert is_admin(interaction, {"admin_role": 5555}) is True
+
+    def test_not_admin_by_role(self):
+        role = MagicMock()
+        role.id = 5555
+        role.name = "Member"
+        interaction = self._make_interaction(roles=[role])
+        assert is_admin(interaction, {"admin_role": "BotAdmin"}) is False
+
+    def test_fallback_to_manage_guild_true(self):
+        interaction = self._make_interaction(manage_guild=True)
+        assert is_admin(interaction, {}) is True
+
+    def test_fallback_to_manage_guild_false(self):
+        interaction = self._make_interaction(manage_guild=False)
+        assert is_admin(interaction, {}) is False
+
+    def test_admin_users_overrides_manage_guild(self):
+        # User is in admin_users list, even though they lack manage_guild
+        interaction = self._make_interaction(user_id=12345, manage_guild=False)
+        assert is_admin(interaction, {"admin_users": [12345]}) is True
+
+    def test_neither_admin_users_nor_role_match(self):
+        interaction = self._make_interaction(user_id=99999, manage_guild=True)
+        # When admin_users/admin_role are configured, manage_guild is not used
+        assert is_admin(interaction, {"admin_users": [12345]}) is False

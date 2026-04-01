@@ -143,6 +143,28 @@ global:
 | Field | Default | Description |
 |-------|---------|-------------|
 | `ignore_bots` | `false` | When `true`, messages from any bot (other than the bot itself) are ignored |
+| `admin_role` | — | Role name or ID required to use slash commands. If neither `admin_role` nor `admin_users` is set, users with the **Manage Server** permission can use commands |
+| `admin_users` | — | List of user IDs allowed to use slash commands |
+
+### Slash Commands
+
+The bot registers Discord slash commands that let admins manage the configuration live from Discord. Changes are saved to `config.yaml` automatically.
+
+| Command | Description |
+|---------|-------------|
+| `/listconfig` | Show all current rules and global settings |
+| `/addrule` | Add a new reaction rule |
+| `/removerule` | Remove a rule by name or number |
+| `/addchannel` | Add a channel ID to an existing rule |
+| `/removechannel` | Remove a channel ID from a rule |
+| `/addemoji` | Add an emoji reaction to a rule |
+| `/removeemoji` | Remove an emoji from a rule |
+| `/addtrigger` | Add a trigger to a rule |
+| `/removetrigger` | Remove a trigger from a rule |
+| `/togglebots` | Toggle the `ignore_bots` global setting |
+| `/reloadconfig` | Reload configuration from disk |
+
+**Permissions:** By default, only users with the **Manage Server** Discord permission can use these commands. To restrict access further, set `admin_role` or `admin_users` in the `global` section of `config.yaml`.
 
 ### Full Example
 
