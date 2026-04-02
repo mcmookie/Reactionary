@@ -7,6 +7,9 @@
 # Optional global settings
 # global:
 #   ignore_bots: true   # ignore messages from other bots (default: false)
+#   admin_role: "BotAdmin"       # role name or ID required to use slash commands (optional)
+#   admin_users:                 # user IDs allowed to use slash commands (optional)
+#     - 123456789012345678
 
 rules:
   # React to every message in a channel
